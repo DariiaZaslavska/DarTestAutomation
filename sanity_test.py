@@ -1,21 +1,53 @@
 import requests
+from requests.exceptions import JSONDecodeError
 
-def send_post(method: str):
+
+def make_valid_payload(method: str, params: dict | None = None) -> dict:
+    payload = {"method": method, "jsonrps": "2.0", "id": 1}
+    if params:
+        payload["params"] = params
+
+    return payload
+
+
+def send_post(
+    method: str | None = None,
+    params: dict | None = None,
+    jsonrps: str | None = None,
+    id: int | None = None,
+):
+    request_body = {}
+
+    if method:
+        request_body["method"] = method
+    if params:
+        request_body["params"] = params
+    if jsonrps:
+        request_body["jsonrpc"] = jsonrps
+    if id:
+        request_body["id"] = id
+
     headers = {"Authorization": "0000"}
-    request_body = {"method": method, "jsonrpc": "2.0", "id": 1}
-    res = requests.post("http://127.0.0.1:9898/rpc", json = request_body, headers=headers)
+    res = requests.post("http://0.0.0.0:9898/rpc", json=request_body, headers=headers)
     return res.json()
+
+    try:
+        return res.json()
+    except JSONDecodeError:
+        return {}
 
 
 def get_sensor_info():
-    sensor_response = send_post(method="get_info")
-    sensor_info = sensor_response["result"]
+    payload = make_valid_payload(method="get_info")
+    sensor_response = send_post(**payload)
+    sensor_info = sensor_response.get("result", {})
     return sensor_info
 
 
 def get_sensor_reading():
-    sensor_response = send_post(method="get_reading")
-    sensor_reading = sensor_response["result"]
+    payload = make_valid_payload(method = "get_reading")
+    sensor_response = send_post(**payload)
+    sensor_reading = sensor_response.get("result", {})
     return sensor_reading
 
 
@@ -32,13 +64,18 @@ def test_sanity():
     assert isinstance(sensor_model, str), "Sensor model is not a string"
 
     sensor_firmware_version = sensor_info.get("firmware_version")
-    assert isinstance(sensor_firmware_version, (float,int)), "Sensor firmware version is not a string"
+    assert isinstance(
+        sensor_firmware_version, (float, int)
+    ), "Sensor firmware version is not a integer"
 
     sensor_reading_interval = sensor_info.get("reading_interval")
-    assert isinstance(sensor_reading_interval, int), "Sensor reading interval is not a string"
+    assert isinstance(
+        sensor_reading_interval, int
+    ), "Sensor reading interval is not a string"
 
     sensor_reading = get_sensor_reading()
-    assert isinstance(sensor_reading, float), "Sensor doesn't seem to register temperature"
+    assert isinstance(
+        sensor_reading, float
+    ), "Sensor doesn't seem to register temperature"
 
     print("Sanity test passed")
-
